@@ -1,6 +1,27 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import h5py   
+    
+def load_dataset():
+    train_dataset = h5py.File('datasets/train_catvnoncat.h5', "r")
+    train_set_x = np.array(train_dataset["train_set_x"][:]) # your train set features
+    train_set_y = np.array(train_dataset["train_set_y"][:]) # your train set labels
 
+    test_dataset = h5py.File('datasets/test_catvnoncat.h5', "r")
+    test_set_x = np.array(test_dataset["test_set_x"][:]) # your test set features
+    test_set_y = np.array(test_dataset["test_set_y"][:]) # your test set labels
+
+    classes = np.array(test_dataset["list_classes"][:]) # the list of classes
+
+    num_px = train_set_x.shape[1]
+    train_set_x = (train_set_x.reshape(train_set_x.shape[0], -1).T)/255.
+    test_set_x = (test_set_x.reshape(test_set_x.shape[0], -1).T)/255.
+
+    train_set_y = train_set_y.reshape((1, train_set_y.shape[0]))
+    test_set_y = test_set_y.reshape((1, test_set_y.shape[0]))
+
+    return num_px, train_set_x, train_set_y, test_set_x, test_set_y, classes
+	
 # GRADED FUNCTION: sigmoid
 def sigmoid(z):
     """
@@ -96,7 +117,7 @@ def propagate(w, b, X, Y):
     m = X.shape[1]
     
     # FORWARD PROPAGATION (FROM X TO COST)
-    A = sigmoid(np.dot(w.T,X)+b)                                    # compute activation
+    A = sigmoid(np.dot(w.T , X) + b)                                    # compute activation
     cost = (-1/m)*np.sum(Y*np.log(A)+(1-Y)*(np.log(1-A)))                                 # compute cost
     
     # BACKWARD PROPAGATION (TO FIND GRAD)
@@ -199,3 +220,50 @@ def predict(w, b, X):
     assert(Y_prediction.shape == (1, m))
     
     return Y_prediction
+
+# GRADED FUNCTION: model
+def model(X_train, Y_train, X_test, Y_test, num_iterations = 2000, learning_rate = 0.5, print_cost = False):
+    """
+    Builds the logistic regression model by calling the function you've implemented previously
+    
+    Arguments:
+    X_train -- training set represented by a numpy array of shape (num_px * num_px * 3, m_train)
+    Y_train -- training labels represented by a numpy array (vector) of shape (1, m_train)
+    X_test -- test set represented by a numpy array of shape (num_px * num_px * 3, m_test)
+    Y_test -- test labels represented by a numpy array (vector) of shape (1, m_test)
+    num_iterations -- hyperparameter representing the number of iterations to optimize the parameters
+    learning_rate -- hyperparameter representing the learning rate used in the update rule of optimize()
+    print_cost -- Set to true to print the cost every 100 iterations
+    
+    Returns:
+    d -- dictionary containing information about the model.
+    """
+    
+    # initialize parameters with zeros (≈ 1 line of code)
+    w, b = initialize_with_zeros(X_train.shape[0])
+
+    # Gradient descent (≈ 1 line of code)
+    parameters, grads, costs = optimize(w, b, X_train, Y_train, num_iterations, learning_rate, print_cost)
+    
+    # Retrieve parameters w and b from dictionary "parameters"
+    w = parameters["w"]
+    b = parameters["b"]
+    
+    # Predict test/train set examples (≈ 2 lines of code)
+    Y_prediction_test = predict(w, b, X_test)
+    Y_prediction_train = predict(w, b, X_train)
+
+    # Print train/test Errors
+    print("train accuracy: {} %".format(100 - np.mean(np.abs(Y_prediction_train - Y_train)) * 100))
+    print("test accuracy: {} %".format(100 - np.mean(np.abs(Y_prediction_test - Y_test)) * 100))
+
+    
+    d = {"costs": costs,
+         "Y_prediction_test": Y_prediction_test, 
+         "Y_prediction_train" : Y_prediction_train, 
+         "w" : w, 
+         "b" : b,
+         "learning_rate" : learning_rate,
+         "num_iterations": num_iterations}
+    
+    return d
